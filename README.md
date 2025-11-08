@@ -20,7 +20,7 @@ A web-based tool for creating publication-ready pentagon-shaped statistical comp
 
 ## 🚀 Live Demo
 
-**[Try it now!](https://YOUR_USERNAME.github.io/pentagon-chart-generator/)**
+**[Try it now!](https://norsc.github.io/false-information-attribute-chart-builder/)**
 
 ## 📊 What is a Pentagon Chart?
 
@@ -42,7 +42,7 @@ Pentagon charts visualize pairwise statistical comparisons between five conditio
 
 ### Option 1: Use Online
 
-Simply visit the [live demo](https://YOUR_USERNAME.github.io/pentagon-chart-generator/) and start creating charts immediately.
+Simply visit the [live demo](https://norsc.github.io/false-information-attribute-chart-builder/) and start creating charts immediately.
 
 ### Option 2: Run Locally
 
