@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pentagon Chart Generator</title>
+    <meta name="description" content="Create publication-ready pentagon-shaped statistical comparison charts for academic papers">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel Standalone for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const PentagonChart = () => {
+          const defaultChart = {
+            id: Date.now(),
+            title: 'Inaccurate Chart',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            centerLabel: 'Inaccurate',
+            conditions: [
+              { name: 'Misinformation', mean: 4.14 },
+              { name: 'Disinformation', mean: 4.16 },
+              { name: 'Propaganda', mean: 3.70 },
+              { name: 'Conspiracy Theories', mean: 3.86 },
+              { name: 'Fake News', mean: 4.37 }
+            ],
+            comparisons: [
+              { from: 0, to: 1, zScore: -3.344, significant: true },
+              { from: 0, to: 2, zScore: 4.176, significant: true },
+              { from: 0, to: 3, zScore: -7.626, significant: true },
+              { from: 0, to: 4, zScore: -4.176, significant: true },
+              { from: 1, to: 2, zScore: 6.665, significant: true },
+              { from: 1, to: 3, zScore: -6.824, significant: true },
+              { from: 1, to: 4, zScore: -2.709, significant: true },
+              { from: 2, to: 3, zScore: -8.830, significant: true },
+              { from: 2, to: 4, zScore: -7.305, significant: true },
+              { from: 3, to: 4, zScore: 0, significant: false }
+            ]
+          };
+
+          const [charts, setCharts] = useState(() => {
+            try {
+              const saved = localStorage.getItem('pentagonCharts');
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                return parsed.length > 0 ? parsed : [defaultChart];
+              }
+            } catch (error) {
+              console.error('Error loading saved charts:', error);
+            }
+            return [defaultChart];
+          });
+
+          const [currentChartId, setCurrentChartId] = useState(() => charts[0].id);
+          const [editMode, setEditMode] = useState(false);
+          const [lastSaved, setLastSaved] = useState(null);
+
+          const currentChart = charts.find(c => c.id === currentChartId) || charts[0];
+
+          useEffect(() => {
+            try {
+              localStorage.setItem('pentagonCharts', JSON.stringify(charts));
+              setLastSaved(new Date());
+            } catch (error) {
+              console.error('Error saving charts:', error);
+            }
+          }, [charts]);
+
+          const updateCurrentChart = (updates) => {
+            setCharts(prevCharts => 
+              prevCharts.map(chart => 
+                chart.id === currentChartId 
+                  ? { ...chart, ...updates, updatedAt: new Date().toISOString() }
+                  : chart
+              )
+            );
+          };
+
+          const createNewChart = () => {
+            const newChart = {
+              ...defaultChart,
+              id: Date.now(),
+              title: `New Chart ${charts.length + 1}`,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            setCharts([...charts, newChart]);
+            setCurrentChartId(newChart.id);
+          };
+
+          const duplicateChart = () => {
+            const newChart = {
+              ...currentChart,
+              id: Date.now(),
+              title: `${currentChart.title} (Copy)`,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            setCharts([...charts, newChart]);
+            setCurrentChartId(newChart.id);
+          };
+
+          const deleteChart = () => {
+            if (charts.length === 1) {
+              alert('You must have at least one chart.');
+              return;
+            }
+            if (confirm(`Delete "${currentChart.title}"? This cannot be undone.`)) {
+              const newCharts = charts.filter(c => c.id !== currentChartId);
+              setCharts(newCharts);
+              setCurrentChartId(newCharts[0].id);
+            }
+          };
+
+          const exportAllCharts = () => {
+            const dataStr = JSON.stringify(charts, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pentagon-charts-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          };
+
+          const importCharts = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              try {
+                const imported = JSON.parse(e.target.result);
+                if (Array.isArray(imported) && imported.length > 0) {
+                  const newCharts = [...charts, ...imported.map(chart => ({
+                    ...chart,
+                    id: Date.now() + Math.random(),
+                    createdAt: chart.createdAt || new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  }))];
+                  setCharts(newCharts);
+                  alert(`Successfully imported ${imported.length} chart(s)!`);
+                } else {
+                  alert('Invalid JSON format. Expected an array of charts.');
+                }
+              } catch (error) {
+                alert('Error importing file. Please check the JSON format.');
+                console.error('Import error:', error);
+              }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+          };
+
+          const updateCondition = (index, field, value) => {
+            const newConditions = [...currentChart.conditions];
+            newConditions[index] = { ...newConditions[index], [field]: field === 'mean' ? parseFloat(value) || 0 : value };
+            updateCurrentChart({ conditions: newConditions });
+          };
+
+          const updateComparison = (index, field, value) => {
+            const newComparisons = [...currentChart.comparisons];
+            if (field === 'zScore') {
+              newComparisons[index] = { ...newComparisons[index], [field]: parseFloat(value) || 0 };
+            } else {
+              newComparisons[index] = { ...newComparisons[index], [field]: value };
+            }
+            updateCurrentChart({ comparisons: newComparisons });
+          };
+
+          const exportAsSVG = () => {
+            const svgElement = document.getElementById('pentagon-chart');
+            const serializer = new XMLSerializer();
+            const svgString = serializer.serializeToString(svgElement);
+            const blob = new Blob([svgString], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentChart.title.toLowerCase().replace(/\s+/g, '-')}-chart.svg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          };
+
+          const generateFigureCaption = () => {
+            const significantCount = currentChart.comparisons.filter(comp => comp.significant).length;
+            const totalComparisons = currentChart.comparisons.length;
+            
+            return `Significant pairwise comparisons for ${currentChart.centerLabel.toLowerCase()}: ${currentChart.centerLabel.toLowerCase()}. Pentagon chart showing mean values for ${currentChart.conditions.map(c => c.name).join(', ')}. Solid lines indicate significant pairwise differences (${significantCount}/${totalComparisons} comparisons), while dotted lines represent non-significant differences. Circle sizes are proportional to mean values. Z-scores are displayed for significant comparisons.`;
+          };
+
+          const generateAltText = () => {
+            const conditionsList = currentChart.conditions.map((c, i) => `${c.name} (mean = ${c.mean.toFixed(2)})`).join(', ');
+            
+            const significantComps = currentChart.comparisons
+              .filter(comp => comp.significant)
+              .map(comp => `${currentChart.conditions[comp.from].name} vs ${currentChart.conditions[comp.to].name} (z = ${comp.zScore.toFixed(3)})`)
+              .join('; ');
+            
+            const nonSignificantComps = currentChart.comparisons
+              .filter(comp => !comp.significant)
+              .map(comp => `${currentChart.conditions[comp.from].name} vs ${currentChart.conditions[comp.to].name}`)
+              .join('; ');
+
+            return `Pentagon-shaped statistical comparison chart for ${currentChart.centerLabel.toLowerCase()}. The chart displays five conditions positioned at pentagon vertices: ${conditionsList}. Each condition is represented by a white circle with size proportional to its mean value. The center of the pentagon is labeled "${currentChart.centerLabel}". Solid black lines connect conditions with statistically significant differences, labeled with z-scores: ${significantComps || 'none'}. Dotted gray lines connect conditions with non-significant differences: ${nonSignificantComps || 'none'}. This visualization allows for quick identification of which condition pairs differ significantly in ${currentChart.centerLabel.toLowerCase()} ratings.`;
+          };
+
+          const copyToClipboard = async (text, type) => {
+            try {
+              await navigator.clipboard.writeText(text);
+              const button = event.target;
+              const originalText = button.textContent;
+              button.textContent = 'Copied!';
+              button.style.backgroundColor = '#059669';
+              setTimeout(() => {
+                button.textContent = originalText;
+                button.style.backgroundColor = '';
+              }, 2000);
+            } catch (err) {
+              const textArea = document.createElement('textarea');
+              textArea.value = text;
+              document.body.appendChild(textArea);
+              textArea.select();
+              try {
+                document.execCommand('copy');
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => button.textContent = originalText, 2000);
+              } catch (fallbackErr) {
+                alert('Could not copy to clipboard. Please select and copy the text manually.');
+              }
+              document.body.removeChild(textArea);
+            }
+          };
+
+          const centerX = 300;
+          const centerY = 250;
+          const radius = 150;
+
+          const getVertexPosition = (index) => {
+            const angle = (index * 2 * Math.PI) / 5 - Math.PI / 2 + Math.PI;
+            return {
+              x: centerX + radius * Math.cos(angle),
+              y: centerY + radius * Math.sin(angle)
+            };
+          };
+
+          const getCircleRadius = (mean) => {
+            const minMean = Math.min(...currentChart.conditions.map(c => c.mean));
+            const maxMean = Math.max(...currentChart.conditions.map(c => c.mean));
+            const normalized = (mean - minMean) / (maxMean - minMean);
+            return 12 + normalized * 15;
+          };
+
+          const generateChart = () => {
+            return (
+              <svg id="pentagon-chart" width="600" height="500" className="border border-gray-300 bg-white">
+                <polygon
+                  points={currentChart.conditions.map((_, i) => {
+                    const pos = getVertexPosition(i);
+                    return `${pos.x},${pos.y}`;
+                  }).join(' ')}
+                  fill="none"
+                  stroke="#e5e7eb"
+                  strokeWidth="1"
+                  strokeDasharray="2,2"
+                />
+
+                {currentChart.comparisons.map((comp, index) => {
+                  const fromPos = getVertexPosition(comp.from);
+                  const toPos = getVertexPosition(comp.to);
+                  const midX = (fromPos.x + toPos.x) / 2;
+                  const midY = (fromPos.y + toPos.y) / 2;
+                  let lineAngle = Math.atan2(toPos.y - fromPos.y, toPos.x - fromPos.x) * 180 / Math.PI;
+                  
+                  if (lineAngle > 90 || lineAngle < -90) {
+                    lineAngle += 180;
+                  }
+                  
+                  return (
+                    <g key={index}>
+                      <line
+                        x1={fromPos.x}
+                        y1={fromPos.y}
+                        x2={toPos.x}
+                        y2={toPos.y}
+                        stroke={comp.significant ? "#374151" : "#9ca3af"}
+                        strokeWidth={comp.significant ? "2" : "1"}
+                        strokeDasharray={comp.significant ? "none" : "4,4"}
+                        opacity={comp.significant ? 1 : 0.6}
+                      />
+                      {comp.significant && comp.zScore !== 0 && (
+                        <g>
+                          <rect
+                            x={midX - 26}
+                            y={midY - 10}
+                            width="52"
+                            height="20"
+                            fill="white"
+                            fillOpacity="0.95"
+                            rx="3"
+                            transform={`rotate(${lineAngle} ${midX} ${midY})`}
+                          />
+                          <text
+                            x={midX}
+                            y={midY + 3}
+                            textAnchor="middle"
+                            className="text-xs fill-green-600 font-medium"
+                            style={{ fontSize: '10px' }}
+                            transform={`rotate(${lineAngle} ${midX} ${midY})`}
+                          >
+                            z={comp.zScore > 0 ? comp.zScore.toFixed(3) : comp.zScore.toFixed(3)}
+                          </text>
+                        </g>
+                      )}
+                    </g>
+                  );
+                })}
+
+                <text
+                  x={centerX}
+                  y={centerY}
+                  textAnchor="middle"
+                  className="text-lg font-semibold fill-gray-800"
+                >
+                  {currentChart.centerLabel}
+                </text>
+
+                {currentChart.conditions.map((condition, index) => {
+                  const pos = getVertexPosition(index);
+                  const circleRadius = getCircleRadius(condition.mean);
+                  const isBottomVertex = index === 0 || index === 1 || index === 4;
+                  const textYOffset = isBottomVertex ? circleRadius + 18 : -(circleRadius + 30);
+                  const meanYOffset = isBottomVertex ? circleRadius + 32 : -(circleRadius + 18);
+                  const rectY = isBottomVertex ? pos.y + circleRadius + 6 : pos.y - circleRadius - 42;
+                  
+                  return (
+                    <g key={index}>
+                      <circle
+                        cx={pos.x}
+                        cy={pos.y}
+                        r={circleRadius}
+                        fill="white"
+                        stroke="#374151"
+                        strokeWidth="2"
+                      />
+                      
+                      <rect
+                        x={pos.x - 45}
+                        y={rectY}
+                        width="90"
+                        height="30"
+                        fill="white"
+                        fillOpacity="0.9"
+                        rx="3"
+                      />
+                      
+                      <text
+                        x={pos.x}
+                        y={pos.y + textYOffset}
+                        textAnchor="middle"
+                        className="text-sm font-medium fill-gray-800"
+                      >
+                        {condition.name}
+                      </text>
+                      
+                      <text
+                        x={pos.x}
+                        y={pos.y + meanYOffset}
+                        textAnchor="middle"
+                        className="text-xs fill-gray-600"
+                      >
+                        x̄={condition.mean.toFixed(2)}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            );
+          };
+
+          const formatDate = (dateString) => {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          };
+
+          return (
+            <div className="p-6 max-w-6xl mx-auto">
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">Pentagon Comparison Chart Generator</h1>
+                <p className="text-gray-600">Create and manage multiple pentagon-shaped charts for comparing 5 conditions.</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="text-xs text-green-600 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Auto-save enabled
+                  </span>
+                  {lastSaved && (
+                    <span className="text-xs text-gray-500">
+                      Last saved: {lastSaved.toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex-1 min-w-64">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Select Chart</label>
+                    <select
+                      value={currentChartId}
+                      onChange={(e) => setCurrentChartId(Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      {charts.map(chart => (
+                        <option key={chart.id} value={chart.id}>
+                          {chart.title} • {formatDate(chart.updatedAt)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={createNewChart}
+                      className="px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors whitespace-nowrap"
+                      title="Create new chart"
+                    >
+                      + New Chart
+                    </button>
+                    <button
+                      onClick={duplicateChart}
+                      className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
+                      title="Duplicate current chart"
+                    >
+                      Duplicate
+                    </button>
+                    <button
+                      onClick={deleteChart}
+                      className="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors whitespace-nowrap"
+                      title="Delete current chart"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={exportAllCharts}
+                    className="px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    Export All Charts (JSON)
+                  </button>
+                  <label className="px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors cursor-pointer">
+                    Import Charts (JSON)
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={importCharts}
+                      className="hidden"
+                    />
+                  </label>
+                  <span className="text-xs text-gray-600 flex items-center px-2">
+                    {charts.length} chart{charts.length !== 1 ? 's' : ''} saved
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-6">
+                <div className="flex-1">
+                  <div className="mb-4 flex gap-2">
+                    <button
+                      onClick={() => setEditMode(!editMode)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      {editMode ? 'View Chart' : 'Edit Data'}
+                    </button>
+                    
+                    {!editMode && (
+                      <button
+                        onClick={exportAsSVG}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Export SVG
+                      </button>
+                    )}
+                  </div>
+                  
+                  {!editMode && generateChart()}
+                  
+                  {!editMode && (
+                    <div className="mt-8 space-y-6">
+                      <div className="bg-gray-50 p-4 rounded-lg border">
+                        <div className="flex justify-between items-start mb-3">
+                          <h3 className="text-lg font-semibold text-gray-800">Figure Caption</h3>
+                          <button
+                            onClick={(e) => copyToClipboard(generateFigureCaption(), 'caption')}
+                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Copy Caption
+                          </button>
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                          {generateFigureCaption()}
+                        </p>
+                      </div>
+
+                      <div className="bg-gray-50 p-4 rounded-lg border">
+                        <div className="flex justify-between items-start mb-3">
+                          <h3 className="text-lg font-semibold text-gray-800">Alternative Text (Accessibility)</h3>
+                          <button
+                            onClick={(e) => copyToClipboard(generateAltText(), 'alt')}
+                            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                          >
+                            Copy Alt Text
+                          </button>
+                        </div>
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                          {generateAltText()}
+                        </p>
+                        <div className="mt-3 text-xs text-gray-600">
+                          <strong>Usage:</strong> Use this detailed description as alt text for screen readers and accessibility compliance.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {editMode && (
+                  <div className="w-96 bg-gray-50 p-4 rounded-lg max-h-screen overflow-y-auto">
+                    <h3 className="text-lg font-semibold mb-4">Edit Chart Data</h3>
+                    
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Chart Title
+                      </label>
+                      <input
+                        type="text"
+                        value={currentChart.title}
+                        onChange={(e) => updateCurrentChart({ title: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Center Label
+                      </label>
+                      <input
+                        type="text"
+                        value={currentChart.centerLabel}
+                        onChange={(e) => updateCurrentChart({ centerLabel: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="mb-6">
+                      <h4 className="text-md font-medium mb-3">Conditions</h4>
+                      {currentChart.conditions.map((condition, index) => (
+                        <div key={index} className="mb-3 p-3 border border-gray-200 rounded">
+                          <div className="mb-2">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Condition {index + 1} Name
+                            </label>
+                            <input
+                              type="text"
+                              value={condition.name}
+                              onChange={(e) => updateCondition(index, 'name', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Mean Value
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={condition.mean}
+                              onChange={(e) => updateCondition(index, 'mean', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div>
+                      <h4 className="text-md font-medium mb-3">Pairwise Comparisons</h4>
+                      <div className="text-xs text-gray-600 mb-3">
+                        Configure the statistical comparisons between conditions
+                      </div>
+                      {currentChart.comparisons.map((comp, index) => (
+                        <div key={index} className="mb-3 p-3 border border-gray-200 rounded">
+                          <div className="mb-2 text-sm font-medium text-gray-700">
+                            {currentChart.conditions[comp.from]?.name} ↔ {currentChart.conditions[comp.to]?.name}
+                          </div>
+                          <div className="mb-2">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Z-Score
+                            </label>
+                            <input
+                              type="number"
+                              step="0.001"
+                              value={comp.zScore}
+                              onChange={(e) => updateComparison(index, 'zScore', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="flex items-center text-xs font-medium text-gray-600">
+                              <input
+                                type="checkbox"
+                                checked={comp.significant}
+                                onChange={(e) => updateComparison(index, 'significant', e.target.checked)}
+                                className="mr-2"
+                              />
+                              Significant difference
+                            </label>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+                <h3 className="text-lg font-semibold text-blue-800 mb-2">How to Use</h3>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Select a chart from the dropdown or create a new one</li>
+                  <li>• Click "Edit Data" to modify chart parameters</li>
+                  <li>• All changes are automatically saved to your browser</li>
+                  <li>• Export all charts as JSON to backup or share your work</li>
+                  <li>• Import JSON files to restore or combine chart collections</li>
+                  <li>• Duplicate charts to create variations quickly</li>
+                  <li>• Use "Export SVG" to save individual charts for publication</li>
+                  <li>• Copy figure captions and alt text for accessibility compliance</li>
+                </ul>
+              </div>
+            </div>
+          );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<PentagonChart />);
+    </script>
+</body>
+</html>
